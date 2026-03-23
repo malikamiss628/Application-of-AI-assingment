@@ -1,0 +1,91 @@
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+
+# =========================
+# 1. DATASET
+# =========================
+
+train_dir = "dataset/"  # folder with 2 classes: normal, abnormal
+
+datagen = ImageDataGenerator(
+    rescale=1./255,
+    validation_split=0.2
+)
+
+train_data = datagen.flow_from_directory(
+    train_dir,
+    target_size=(224,224),
+    batch_size=32,
+    class_mode='binary',
+    subset='training'
+)
+
+val_data = datagen.flow_from_directory(
+    train_dir,
+    target_size=(224,224),
+    batch_size=32,
+    class_mode='binary',
+    subset='validation'
+)
+
+# =========================
+# 2. MODEL
+# =========================
+
+base_model = MobileNetV2(
+    weights='imagenet',
+    include_top=False,
+    input_shape=(224,224,3)
+)
+
+base_model.trainable = False  # freeze base
+
+model = models.Sequential([
+    base_model,
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+model.summary()
+
+# =========================
+# 3. TRAIN
+# =========================
+
+history = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=10
+)
+
+# =========================
+# 4. GRAPH (Epoch vs Error)
+# =========================
+
+plt.plot(history.history['loss'], label='Train Error')
+plt.plot(history.history['val_loss'], label='Validation Error')
+plt.xlabel("Epochs")
+plt.ylabel("Error")
+plt.title("Epoch vs Error (Skin Detection)")
+plt.legend()
+plt.show()
+
+# =========================
+# 5. ACCURACY
+# =========================
+
+train_acc = history.history['accuracy'][-1]
+val_acc = history.history['val_accuracy'][-1]
+
+print("Training Accuracy:", train_acc)
+print("Validation Accuracy:", val_acc)
